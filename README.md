@@ -97,8 +97,7 @@ For Task 4, the first step was to adjust tokeniser so that it appended known fun
 The transition to a differentiation function lead to the decision that every previous function should be treated as a utility for differentiator, such that a calculator program could read in user input, read in the decision to differentiate, and consequently call "differentiator(user_entry)" without any other function calls. The Polish notation operator structure makes parsing extremely easy, with four different conditions/
 
 * Terminal condition 1:
-* 	If the variable we are looking at is "x", then return 1. 
-* 	
+* 	If the variable we are looking at is "x", then return 1. 	
 * Terminal condition 2:
 *	If the variable we are looking at is some naive string, but not "x", then return 0.
 
@@ -134,6 +133,10 @@ After the refactored expression is differentiated, we ideally want to be able to
 What this finished program does:
 
 Given a properly formatted string entry, it will return the same function differentiated in a similar format. Where this is not possible, it will return None, and attempt to echo a meaningful error message to the console.
+
+## Unit Testing 
+
+Project was written and deployed in modules, which is very clear from the somewhat frenetic and sometimes forward-looking approach outlined in this documentation file until Task 4 (when the whole thing was finally finished). This meant various individual modules like \_B\_Parser and \_diff were modified and broken multiple times. Adding pytest unit test functionality in a [helper file](Testing.py) ensured that regular checking could be done to ensure functions continued to work in the presence of errors caused by alterations done long after the original modules were written. 
 
 
 ## Future steps:
