@@ -1,7 +1,6 @@
-"""Project File for Assessment 3"""
-
-# Objective of project is to make a program capable of basic differentiation
-# Deliver in single .py package
+"""Project File for Assessment 3
+Objective of project is to make a program capable of basic differentiation
+delivered in single .py package."""
 
 # Task 1
 def _bracket_checker (obj):  
@@ -87,20 +86,22 @@ def _fail():
 def _is_valid_exponent(right):  
     """Checks if the exponent is a natural number greater than 1"""
     if isinstance(right, (str)):
-        return right.isdigit() and int(right) > 1
+        return right.isdigit() and int(right) >= 1
 
     else: return False 
         
-def _AS_parser (expression, place, functs):
+def _AS_parser (expression, place, functs): 
     """Parses addition for subtraction operators"""
     left, place = _DM_parser (expression, place, functs)
+    if place == -1: return _fail()
 
     while place < len(expression) and expression[place] in ["+", "-"]:
         optor = expression[place]
         right, place = _DM_parser (expression, place + 1, functs)
 
-        if place == -1: return _fail()
-        left = _make_node(optor, left, right)
+        if place == -1:
+            return _fail()
+        left = _make_node (optor, left, right)
 
     return left, place 
 
@@ -139,7 +140,10 @@ def _I_parser (expression, place, functs):
 
 def _F_parser (expression, place, functs):    
     """Function parsing utility, adding functions is simple as adding
-    it to the list"""
+    it to the functions list in differentiator"""
+
+    if place < 0 or place >= len(expression):
+        return _fail()
     
     func = expression[place]
 
@@ -151,7 +155,10 @@ def _F_parser (expression, place, functs):
         
         nested, place = _AS_parser(expression, place + 2, functs)
 
-        if place == -1 or place + 1 > len(expression):
+        if place == -1:
+            return _fail()
+
+        if place >= len(expression) or expression[place] != ")":
             return _fail()
 
         return {
@@ -165,16 +172,32 @@ def _B_parser (expression, place, functs):
     """Bracket parsing utility, consumes (, returns new node"""
     if place < 0 or place >= len(expression):
         return _fail()
-    
-    token = expression[place]
-    if expression[place] == "(":
-        node, place = _AS_parser(expression, place + 1, functs)
-        if place == -1: return _fail()
-        return node, (place + 1)
 
-    return token, (place + 1) 
-    
-def _formatter (user_entry, functs = ["^", "**", "*", "/", "+", "-"]):
+    optors = {"+", "-", "*", "/", "^", "**"}
+    token = expression[place]
+
+    if token == "(":
+        node, place = _AS_parser(expression, place + 1, functs)
+        if place == -1:
+            return _fail()
+
+        # expression must end ")"
+        if place >= len(expression) or expression[place] != ")":
+            return _fail()
+        return node, place + 1
+
+    # value must follow, blocks entry like "(a+)"
+    if token == ")" or token in optors:
+        return _fail()
+
+    if token.isdigit():
+        return token, place + 1
+    if token.isalpha() and len(token) == 1:
+        return token, place + 1
+
+    return _fail()
+
+def _formatter (user_entry, functs = ["sin", "cos", "log", "exp"]): 
     """Internal differential utility that turns strings into equations
     that _diff can parse"""
     if not _bracket_checker(user_entry):
@@ -188,31 +211,32 @@ def _formatter (user_entry, functs = ["^", "**", "*", "/", "+", "-"]):
         print("Multi-character Unknown Error")
         return None 
 
-    if len(tokens) > 1:
-        if not tokens[0] == "(" and tokens[len(tokens)-1] == ")":
+    optors = {"^", "**", "*", "/", "+", "-"}
+    if any (tok in optors for tok in tokens):
+        if not (tokens and tokens[0] == "(" and tokens[-1] == ")"):
             print("Bracket Wrapping Error")
             return None 
-    
-    tree, exit_code = _AS_parser(tokens, 0, functs) # starts chain
-    if exit_code == -1:
+
+    tree, place = _AS_parser(tokens, 0, functs) # starts chain
+
+    if place == -1 or place != len(tokens):
         print("Bad Format Error")
-        return None 
+        return None
     
     return tree
 
-def _is_operator (expression):  
+def _is_operator (expression):   
     """Checks whether node in differentiator is an operator."""
 
-    for key in expression.keys():
-        return key == 'optor'
+    return isinstance (expression, dict) and "optor" in expression
 
-def _is_function (expression): 
+def _is_function (expression):  
     """Checks whether the node is a function"""
 
-    for key in expression.keys(): return key == 'function'
+    return isinstance (expression, dict) and "function" in expression
     
 # recursive differentiation    
-def _diff (expression, functs = ["^", "**", "*", "/", "+", "-"]):
+def _diff (expression, functs = ["sin", "cos", "log", "exp"]): 
     """Recursive differencing function. Terminates variables and splits
     functions / operators"""
 
@@ -222,7 +246,7 @@ def _diff (expression, functs = ["^", "**", "*", "/", "+", "-"]):
     elif isinstance(expression, (str)): return "0"
 
     # Differentiating an operator 
-    elif isinstance(expression, (dict)) and _is_operator(expression):
+    elif _is_operator(expression):
         op = expression['optor']
         left, right = expression['args']
 
@@ -256,14 +280,16 @@ def _diff (expression, functs = ["^", "**", "*", "/", "+", "-"]):
 
         # simple exponent rule (why use this when we implement chain rule?)
         elif op == "^" or op == "**":
-            exponent = _make_node("-",
-                                  right, "1")
+            diff_exponent = _make_node("-",
+                                       right, "1")
             return _make_node("*",
-                              right,
-                              _make_node("^",
-                                         left, exponent))
+                              _make_node("*",
+                                         right,
+                                         _make_node("^",
+                                                    left, diff_exponent)),
+                              _diff(left))
 
-    elif isinstance(expression, (dict)) and _is_function(expression):
+    elif _is_function(expression):
 
         fun = expression['function']
         arg = expression['args']
@@ -307,7 +333,7 @@ def _priority (optor):
     if optor in ["*", "/"]: return 2
     if optor in ["**", "^"]: return 3
     
-def _to_string (node, parent_priority = 0):
+def _to_string (node, parent_priority = 0): 
     """Converts formatted expression back to user entry format"""
 
     # termination condition
@@ -321,17 +347,20 @@ def _to_string (node, parent_priority = 0):
     if isinstance(node, (dict)) and _is_operator(node):
         op = node['optor']
         left, right = node['args']
-
-        
         priority = _priority(op)
 
         # recursive call
         left_str = _to_string(left, priority)
-        right_str = _to_string(
-            right,
-            priority - (1 if op in ["^", "**"] else 0) # ^ right associative
-        )
 
+        if op in ("^", "**"):
+            right_parent_priority = priority - 1
+        elif op in ("/", "-"):
+            right_parent_priority = priority + 1
+        else:
+            right_parent_priority = priority  
+
+        right_str = _to_string(right, right_parent_priority)
+        
         expr = f"{left_str}{op}{right_str}"
 
         if priority < parent_priority:
@@ -339,7 +368,7 @@ def _to_string (node, parent_priority = 0):
 
         return expr
 
-def differentiator (user_entry):
+def differentiator (user_entry): 
     """Differentiates Python strings formatted according to API
     all differentiation done with respect to x, any other non-
     function treated as a constant."""
@@ -353,11 +382,18 @@ def differentiator (user_entry):
         return None 
 
     differenced = _diff(expression, functs)
+    if differenced == None:
+        return None 
 
     return _to_string(differenced)
 
 
-# example call
-differentiator("(cos(x) * (x^2))")
+# example calls 
+if __name__ == "__main__":
 
-differentiator("(cos((exp(x))/(x^12))+(x^2))")
+    differentiator("4")
+    differentiator("(-4+4)")
+    differentiator("(sin(x)+2)")
+    differentiator("(cos(x) * (x^2))")
+    differentiator("(cos(x)/(x^2))")
+    differentiator("(cos((exp(x))/(x^12))+(x^2))")
